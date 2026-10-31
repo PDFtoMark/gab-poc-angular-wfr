@@ -15,34 +15,27 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Payload
+      - name: Simulate privileged action file
         run: |
-          echo "run_id=${{ github.event.workflow_run.id }}"
-          echo "head_sha=${{ github.event.workflow_run.head_sha }}"
-          echo "head_branch=${{ github.event.workflow_run.head_branch }}"
-          echo "upstream_event=${{ github.event.workflow_run.event }}"
+          mkdir -p actionsim
+          echo ORIGINAL > actionsim/extract-artifact-metadata.js
       - name: Download attacker artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p dl && gh run download ${{ github.event.workflow_run.id }} -R ${{ github.repository }} -n adev-preview -D dl
           ls -la dl
-          tar -tzf dl/deploy-artifact.tar.gz
-          mkdir -p pub && tar -xzf dl/deploy-artifact.tar.gz -C pub
-          echo "---extracted---"; find pub -type f
-          echo "---content---"; cat pub/index.html
-      - name: Verify binding
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      - name: Extract like the composite action
         run: |
-          N=$(cat dl/__metadata__pull_number.txt)
-          PRSHA=$(gh api repos/${{ github.repository }}/pulls/$N --jq .head.sha)
-          echo "claimed_pr=$N pr_head_sha=$PRSHA run_head_sha=$WORKFLOW_RUN_HEAD_SHA"
-          if [ "$PRSHA" = "$WORKFLOW_RUN_HEAD_SHA" ]; then echo BINDING_PASS; else echo BINDING_FAIL; fi
-      - name: Comment on claimed PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          N=$(cat dl/__metadata__pull_number.txt)
-          gh pr comment $N --repo ${{ github.repository }} --body "PRIVILEGED_WFR_COMMENT_FROM_DEPLOY_JOB"
+          tar --version | head -1
+          mkdir -p pub
+          set +e
+          tar -xzf dl/deploy-artifact.tar.gz -C pub
+          echo "TAR_EXIT=$?"
+          set -e
+          echo "--- find -type l ---"
+          find pub -type l || true
+          echo "--- actionsim content ---"
+          cat actionsim/extract-artifact-metadata.js
+      - name: Report
+        run: echo "done"
