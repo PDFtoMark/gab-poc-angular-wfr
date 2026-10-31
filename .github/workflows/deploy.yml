@@ -25,7 +25,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p dl && gh run download ${{ github.event.workflow_run.id }} -n adev-preview -D dl
+          mkdir -p dl && gh run download ${{ github.event.workflow_run.id }} -R ${{ github.repository }} -n adev-preview -D dl
           ls -la dl
           tar -tzf dl/deploy-artifact.tar.gz
           mkdir -p pub && tar -xzf dl/deploy-artifact.tar.gz -C pub
